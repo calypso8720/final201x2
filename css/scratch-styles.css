@@ -1,0 +1,155 @@
+/* Scratch page specific styles - isolated from other pages */
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+    background-image: url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    font-family: 'Times New Roman', Times, serif;
+}
+
+h1 {
+    font-family: 'Georgia', serif;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+    text-align: center;
+    margin: 30px 0 20px 0;
+    font-size: 2.5em;
+}
+
+.cosmo-heading {
+    font-family: 'Georgia', serif;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+    text-align: center;
+    margin: 10px 0 8px 0;
+    font-size: 1.8em;
+}
+
+.nav-item {
+    margin-bottom: 20px;
+}
+
+.nav-link {
+    display: inline-block;
+    padding: 12px 24px;
+    background-color: rgba(0, 123, 255, 0.8);
+    color: white;
+    text-decoration: none;
+    border-radius: 25px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    margin: 0 10px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.nav-link:hover {
+    background-color: rgba(0, 123, 255, 1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+iframe {
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    margin: 20px 0;
+    max-width: 100%;
+}
+
+/* Cosmo image styling */
+.cosmo-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    margin: 10px 0 16px 0;
+}
+.cosmo-photo {
+    max-width: 900px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+}
+.cosmo-wrap .caption {
+    margin-top: 8px;
+    color: #fff;
+}
+
+/* Styles for the ordered list with nested unordered lists on scratch page */
+.explore-list {
+    /* increased opacity so list stands out more against background */
+    background: rgba(255, 255, 255, 0.707);
+    padding: 18px 22px;
+    border-radius: 10px;
+    color: #000000; /* switch to dark navy for readability */
+    max-width: 900px;
+    width: 100%;
+    margin: 12px 0 20px 0;
+    list-style-position: inside;
+}
+.explore-list > li {
+    margin: 10px 0;
+    font-weight: 600;
+}
+.explore-list ul {
+    margin-top: 6px;
+    margin-bottom: 6px;
+    padding-left: 18px;
+    list-style-type: disc;
+}
+.explore-list li li {
+    font-weight: 400;
+}
+
+.tableauPlaceholder {
+    margin: 20px 0;
+}
+
+.back-to-top {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: rgba(0, 123, 255, 0.8);
+    color: white;
+    text-decoration: none;
+    padding: 12px 16px;
+    border-radius: 50%;
+    font-size: 18px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.back-to-top:hover {
+    background-color: rgba(0, 123, 255, 1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    h1 {
+        font-size: 2em;
+    }
+
+    .nav-link {
+        display: block;
+        margin: 5px 0;
+        text-align: center;
+    }
+
+    iframe {
+        width: 100%;
+        height: auto;
+    }
+}

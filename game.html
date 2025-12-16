@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPS Battle Simulator</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✂️</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@400;700&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Roboto', sans-serif;
+            background-color: #050505;
+            color: white;
+        }
+
+        #bg-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.8;
+        }
+
+        #game-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 20;
+            pointer-events: none; /* Let clicks pass through to canvas if needed, though we use overlay for controls */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .hud-panel {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            pointer-events: auto;
+            border-radius: 12px;
+            margin: 1rem;
+        }
+
+        .control-group {
+            margin-bottom: 0.5rem;
+        }
+
+        input[type=range] {
+            width: 100%;
+            accent-color: #a855f7; 
+            height: 6px;
+            border-radius: 5px;
+            background: #333;
+            outline: none;
+        }
+
+        /* Epic Victory Screen */
+        #victory-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 50;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 1s ease-in;
+            backdrop-filter: blur(5px);
+        }
+
+        .glow-text {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 3rem;
+            text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 40px currentColor;
+            animation: pulse 2s infinite;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+
+        .stat-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .emoji-icon {
+            font-size: 1.5rem;
+            filter: drop-shadow(0 0 5px rgba(255,255,255,0.5));
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Background Aurora -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Game Layer -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- UI Overlay -->
+    <div id="ui-layer">
+        <!-- Top Bar: Stats -->
+        <div class="flex justify-between items-start pointer-events-none">
+            <div class="hud-panel flex gap-6 text-xl shadow-lg pointer-events-auto">
+                <div class="stat-box text-gray-300">
+                    <span class="emoji-icon">🪨</span>
+                    <span id="count-rock">0</span>
+                </div>
+                <div class="stat-box text-yellow-200">
+                    <span class="emoji-icon">📄</span>
+                    <span id="count-paper">0</span>
+                </div>
+                <div class="stat-box text-red-400">
+                    <span class="emoji-icon">✂️</span>
+                    <span id="count-scissors">0</span>
+                </div>
+            </div>
+            
+            <div class="hud-panel pointer-events-auto">
+                 <button onclick="restartGame()" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-6 rounded shadow-lg transition transform hover:scale-105">
+                    RESTART BATTLE
+                </button>
+            </div>
+        </div>
+
+        <!-- Bottom Bar: Controls -->
+        <div class="flex justify-center pointer-events-none">
+            <div class="hud-panel grid grid-cols-2 md:grid-cols-5 gap-6 text-sm w-full max-w-5xl pointer-events-auto">
+                
+                <div class="control-group">
+                    <label class="block text-gray-400 mb-1">Rocks <span id="val-rock" class="text-white font-bold">5</span></label>
+                    <input type="range" id="input-rock" min="3" max="20" value="5" oninput="updateLabel('rock')">
+                </div>
+                
+                <div class="control-group">
+                    <label class="block text-gray-400 mb-1">Paper <span id="val-paper" class="text-white font-bold">5</span></label>
+                    <input type="range" id="input-paper" min="3" max="20" value="5" oninput="updateLabel('paper')">
+                </div>
+                
+                <div class="control-group">
+                    <label class="block text-gray-400 mb-1">Scissors <span id="val-scissors" class="text-white font-bold">5</span></label>
+                    <input type="range" id="input-scissors" min="3" max="20" value="5" oninput="updateLabel('scissors')">
+                </div>
+
+                <div class="control-group">
+                    <label class="block text-gray-400 mb-1">Speed <span id="val-speed" class="text-white font-bold">2</span></label>
+                    <input type="range" id="input-speed" min="1" max="10" step="0.5" value="2" oninput="updateLabel('speed')">
+                </div>
+
+                <div class="control-group">
+                    <label class="block text-gray-400 mb-1">Size <span id="val-size" class="text-white font-bold">30</span></label>
+                    <input type="range" id="input-size" min="15" max="60" value="30" oninput="updateLabel('size')">
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Epic Victory Screen -->
+    <div id="victory-screen" onclick="hideVictory()">
+        <div id="victory-text" class="glow-text text-white mb-8">
+            VICTORY
+        </div>
+        <p class="text-gray-300 mb-8">The battle has ended.</p>
+        <button onclick="restartGame()" class="bg-white text-black font-bold py-3 px-8 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.5)] hover:bg-gray-200 transition">
+            PLAY AGAIN
+        </button>
+    </div>
+
+    <script>
+        /* --- CONFIG & STATE --- */
+        // Use var for globals to avoid "Identifier already declared" errors in some environments
+        var TYPE = { ROCK: 0, PAPER: 1, SCISSORS: 2 };
+        var ICONS = { 0: '🪨', 1: '📄', 2: '✂️' };
+        var COLORS = { 0: '#94a3b8', 1: '#fef08a', 2: '#f87171' }; // Slate, Yellow, Red
+        
+        // Game State
+        var particles = [];
+        var gameRunning = true;
+        var animationId;
+        
+        // DOM Elements
+        var canvas = document.getElementById('game-canvas');
+        var ctx = canvas.getContext('2d');
+        var bgCanvas = document.getElementById('bg-canvas');
+        var bgCtx = bgCanvas.getContext('2d');
+        var victoryScreen = document.getElementById('victory-screen');
+        var victoryText = document.getElementById('victory-text');
+
+        // Stats UI
+        var countEls = {
+            [TYPE.ROCK]: document.getElementById('count-rock'),
+            [TYPE.PAPER]: document.getElementById('count-paper'),
+            [TYPE.SCISSORS]: document.getElementById('count-scissors')
+        };
+
+        // Inputs
+        var inputs = {
+            rock: document.getElementById('input-rock'),
+            paper: document.getElementById('input-paper'),
+            scissors: document.getElementById('input-scissors'),
+            speed: document.getElementById('input-speed'),
+            size: document.getElementById('input-size'),
+        };
+
+        // Resize Handling
+        var width, height;
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            bgCanvas.width = width;
+            bgCanvas.height = height;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        /* --- PARTICLE CLASS --- */
+        class Particle {
+            constructor(type, x, y) {
+                this.type = type;
+                this.x = x;
+                this.y = y;
+                this.radius = parseInt(inputs.size.value);
+                
+                // Random velocity vector
+                var speed = parseFloat(inputs.speed.value);
+                var angle = Math.random() * Math.PI * 2;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                
+                this.mass = 1; // Uniform mass
+            }
+
+            draw() {
+                // Update radius dynamically in case user changes slider mid-game
+                this.radius = parseInt(inputs.size.value);
+
+                // Draw Circle Background
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = COLORS[this.type];
+                ctx.shadowColor = COLORS[this.type];
+                ctx.shadowBlur = 15;
+                ctx.fill();
+                ctx.closePath();
+                ctx.shadowBlur = 0;
+
+                // Draw Emoji
+                ctx.font = `${this.radius}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = 'black'; // Text color inside bubble
+                ctx.fillText(ICONS[this.type], this.x, this.y + (this.radius * 0.1));
+            }
+
+            update() {
+                var speedMult = parseFloat(inputs.speed.value);
+                
+                // Normalize velocity and re-apply current speed setting
+                // This allows live speed adjustment
+                var currentSpeed = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
+                if(currentSpeed > 0) {
+                    this.vx = (this.vx / currentSpeed) * speedMult;
+                    this.vy = (this.vy / currentSpeed) * speedMult;
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Wall Collisions
+                if (this.x - this.radius < 0) {
+                    this.x = this.radius;
+                    this.vx *= -1;
+                } else if (this.x + this.radius > width) {
+                    this.x = width - this.radius;
+                    this.vx *= -1;
+                }
+
+                if (this.y - this.radius < 0) {
+                    this.y = this.radius;
+                    this.vy *= -1;
+                } else if (this.y + this.radius > height) {
+                    this.y = height - this.radius;
+                    this.vy *= -1;
+                }
+            }
+        }
+
+        /* --- PHYSICS ENGINE --- */
+        function checkCollisions() {
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const p1 = particles[i];
+                    const p2 = particles[j];
+
+                    const dx = p2.x - p1.x;
+                    const dy = p2.y - p1.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const minDist = p1.radius + p2.radius;
+
+                    if (dist < minDist) {
+                        // Resolve Overlap first (prevent sticking)
+                        const angle = Math.atan2(dy, dx);
+                        const overlap = minDist - dist;
+                        const moveX = (overlap / 2) * Math.cos(angle);
+                        const moveY = (overlap / 2) * Math.sin(angle);
+
+                        p1.x -= moveX;
+                        p1.y -= moveY;
+                        p2.x += moveX;
+                        p2.y += moveY;
+
+                        // Resolve Velocity (Elastic Collision)
+                        // Normal vector
+                        const nx = dx / dist;
+                        const ny = dy / dist;
+
+                        // Tangent vector
+                        const tx = -ny;
+                        const ty = nx;
+
+                        // Dot Product Tangent
+                        const dpTan1 = p1.vx * tx + p1.vy * ty;
+                        const dpTan2 = p2.vx * tx + p2.vy * ty;
+
+                        // Dot Product Normal
+                        const dpNorm1 = p1.vx * nx + p1.vy * ny;
+                        const dpNorm2 = p2.vx * nx + p2.vy * ny;
+
+                        // Conservation of momentum (mass = 1 for both)
+                        const m1 = 1;
+                        const m2 = 1;
+
+                        const mom1 = (dpNorm1 * (m1 - m2) + 2 * m2 * dpNorm2) / (m1 + m2);
+                        const mom2 = (dpNorm2 * (m2 - m1) + 2 * m1 * dpNorm1) / (m1 + m2);
+
+                        p1.vx = tx * dpTan1 + nx * mom1;
+                        p1.vy = ty * dpTan1 + ny * mom1;
+                        p2.vx = tx * dpTan2 + nx * mom2;
+                        p2.vy = ty * dpTan2 + ny * mom2;
+
+                        // BATTLE LOGIC
+                        resolveBattle(p1, p2);
+                    }
+                }
+            }
+        }
+
+        function resolveBattle(p1, p2) {
+            if (p1.type === p2.type) return; // Same type, just bounce
+
+            // Rock(0) vs Paper(1) -> Paper wins
+            // Paper(1) vs Scissors(2) -> Scissors wins
+            // Scissors(2) vs Rock(0) -> Rock wins
+            
+            // Logic: (a - b + 3) % 3
+            // If result is 1, a wins. If 2, b wins.
+            
+            const result = (p1.type - p2.type + 3) % 3;
+
+            if (result === 1) {
+                // p1 wins
+                p2.type = p1.type;
+            } else if (result === 2) {
+                // p2 wins
+                p1.type = p2.type;
+            }
+        }
+
+        /* --- GAME LOGIC --- */
+        function initGame() {
+            particles = [];
+            gameRunning = true;
+            victoryScreen.style.display = 'none';
+            victoryScreen.style.opacity = '0';
+
+            const counts = {
+                [TYPE.ROCK]: parseInt(inputs.rock.value),
+                [TYPE.PAPER]: parseInt(inputs.paper.value),
+                [TYPE.SCISSORS]: parseInt(inputs.scissors.value)
+            };
+
+            // Spawn particles
+            spawnType(TYPE.ROCK, counts[TYPE.ROCK]);
+            spawnType(TYPE.PAPER, counts[TYPE.PAPER]);
+            spawnType(TYPE.SCISSORS, counts[TYPE.SCISSORS]);
+
+            updateStats();
+        }
+
+        function spawnType(type, count) {
+            for(let i=0; i<count; i++) {
+                // Try to find a spot that doesn't overlap immediately
+                let x, y, safe;
+                let attempts = 0;
+                do {
+                    safe = true;
+                    x = Math.random() * (width - 100) + 50;
+                    y = Math.random() * (height - 100) + 50;
+                    
+                    // Basic overlap check with existing
+                    for(let p of particles) {
+                        const dx = x - p.x;
+                        const dy = y - p.y;
+                        if(Math.sqrt(dx*dx + dy*dy) < (parseInt(inputs.size.value)*2)) {
+                            safe = false;
+                            break;
+                        }
+                    }
+                    attempts++;
+                } while(!safe && attempts < 50);
+
+                particles.push(new Particle(type, x, y));
+            }
+        }
+
+        function updateStats() {
+            const counts = { 0: 0, 1: 0, 2: 0 };
+            particles.forEach(p => counts[p.type]++);
+
+            countEls[0].textContent = counts[0];
+            countEls[1].textContent = counts[1];
+            countEls[2].textContent = counts[2];
+
+            // Check Win Condition
+            let activeTypes = 0;
+            let winnerType = -1;
+            if (counts[0] > 0) { activeTypes++; winnerType = 0; }
+            if (counts[1] > 0) { activeTypes++; winnerType = 1; }
+            if (counts[2] > 0) { activeTypes++; winnerType = 2; }
+
+            if (activeTypes === 1 && gameRunning) {
+                endGame(winnerType);
+            }
+        }
+
+        function endGame(winnerType) {
+            gameRunning = false;
+            let text = "";
+            let color = "";
+            
+            switch(winnerType) {
+                case TYPE.ROCK: 
+                    text = "ROCK CRUSHES ALL!"; 
+                    color = COLORS[TYPE.ROCK];
+                    break;
+                case TYPE.PAPER: 
+                    text = "PAPER COVERS THE WORLD!"; 
+                    color = COLORS[TYPE.PAPER];
+                    break;
+                case TYPE.SCISSORS: 
+                    text = "SCISSORS SHREDS EVERYTHING!"; 
+                    color = COLORS[TYPE.SCISSORS];
+                    break;
+            }
+
+            victoryText.textContent = text;
+            victoryText.style.color = color;
+            victoryScreen.style.display = 'flex';
+            
+            // Fade in
+            requestAnimationFrame(() => {
+                victoryScreen.style.opacity = '1';
+            });
+        }
+
+        function restartGame() {
+            initGame();
+        }
+
+        function hideVictory() {
+            // Optional: click to dismiss without restarting immediately
+            // But usually restart is better.
+        }
+
+        // Helper for input labels
+        window.updateLabel = function(id) {
+            const val = document.getElementById(`input-${id}`).value;
+            document.getElementById(`val-${id}`).textContent = val;
+        }
+
+        /* --- ANIMATION LOOP --- */
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+
+            // Update Physics
+            particles.forEach(p => p.update());
+            checkCollisions();
+
+            // Draw
+            particles.forEach(p => p.draw());
+
+            // Logic
+            if(gameRunning) {
+                updateStats();
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        /* --- BACKGROUND (NORTHERN LIGHTS) --- */
+        var auroraTime = 0; // Renamed from 't' and changed to 'var' to fix collision error
+        function drawBackground() {
+            bgCtx.fillStyle = '#050505';
+            bgCtx.fillRect(0, 0, width, height);
+
+            // Draw Auroras
+            // We'll draw 3 sine-wave bands
+            const bands = [
+                { color: 'rgba(0, 255, 128, 0.1)', y: height * 0.4, amp: 50, freq: 0.002, speed: 0.005 },
+                { color: 'rgba(128, 0, 255, 0.1)', y: height * 0.5, amp: 70, freq: 0.003, speed: 0.007 },
+                { color: 'rgba(0, 200, 255, 0.1)', y: height * 0.6, amp: 60, freq: 0.0025, speed: 0.003 }
+            ];
+
+            bgCtx.globalCompositeOperation = 'lighter'; // Additive blending for glow
+
+            bands.forEach((band, index) => {
+                bgCtx.fillStyle = band.color;
+                bgCtx.beginPath();
+                bgCtx.moveTo(0, height);
+
+                for (let x = 0; x <= width; x += 10) {
+                    // Combine sine waves for organic look
+                    const y = band.y + 
+                              Math.sin(x * band.freq + auroraTime * band.speed) * band.amp + 
+                              Math.sin(x * band.freq * 2 + auroraTime * band.speed * 1.5) * (band.amp * 0.5);
+                    
+                    // Create a curtain effect by extending up/down
+                    bgCtx.lineTo(x, y);
+                }
+                
+                bgCtx.lineTo(width, height);
+                bgCtx.lineTo(0, height);
+                bgCtx.fill();
+            });
+
+            bgCtx.globalCompositeOperation = 'source-over';
+
+            // Add some stars
+            if (Math.random() > 0.95) {
+                bgCtx.fillStyle = 'white';
+                const sx = Math.random() * width;
+                const sy = Math.random() * height;
+                bgCtx.fillRect(sx, sy, 2, 2);
+            }
+
+            auroraTime += 1;
+            requestAnimationFrame(drawBackground);
+        }
+
+
+        // Start
+        drawBackground();
+        initGame();
+        animate();
+
+    </script>
+</body>
+</html>
